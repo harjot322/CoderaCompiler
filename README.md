@@ -1,11 +1,11 @@
 # Compiler For :
 <br>
-##Python
+Python
 <br>
-##C++
+C++
 <br>
-##C
+C
 <br>
-##Java
+Java
 <br>
-##JavaScript
+JavaScript
