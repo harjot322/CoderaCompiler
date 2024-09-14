@@ -1,6 +1,9 @@
 import streamlit as st
-import subprocess
-import os
+import requests
+import json
+
+# RapidAPI credentials (replace with your actual RapidAPI key)
+RAPIDAPI_KEY = "5655e1925cmsh3b43150048e8c3dp1b0b56jsne55049150f2d"  # Replace with your actual RapidAPI key
 
 # Language-specific Hello World code snippets
 hello_world_examples = {
@@ -38,73 +41,50 @@ default_code = hello_world_examples[filetype]
 # Code editor with default Hello World code based on the language selected
 code = st.text_area("Write your code here", value=default_code, height=300)
 
+# Language mapping for the API
+language_map = {
+    "Python": "python3",  # Python 3.x
+    "C++": "cpp",         # C++
+    "C": "c",             # C
+    "Java": "java",       # Java
+    "JavaScript": "nodejs"  # JavaScript using Node.js
+}
+
+# Initialize output variable to ensure it is always defined
+output = ""
+
 # Run button
 if st.button("Run Code"):
-    # Define the filename and compiler based on the selected language
-    if filetype == "C++":
-        filename = "temp.cpp"
-        compiler = "g++"
-    elif filetype == "C":
-        filename = "temp.c"
-        compiler = "gcc"
-    elif filetype == "Java":
-        filename = "Temp.java"
-    elif filetype == "JavaScript":
-        filename = "temp.js"
-    else:
-        filename = "temp.py"
-    
-    # Save the code to a temporary file
-    with open(filename, "w") as f:
-        f.write(code)
-    
+    # API URL and Headers for RapidAPI
+    url = "https://online-code-compiler.p.rapidapi.com/v1/"
+    headers = {
+        'x-rapidapi-key': RAPIDAPI_KEY,  # Replace with your actual RapidAPI key
+        'x-rapidapi-host': "online-code-compiler.p.rapidapi.com",
+        'Content-Type': "application/json"
+    }
+
+    # Define the payload for the API request
+    payload = {
+        "language": language_map[filetype],  # Correct language
+        "version": "latest",                 # Use the latest version of the language
+        "code": code,                        # The code entered by the user
+        "input": None                        # No input provided (stdin)
+    }
+
+    # Make the request to RapidAPI
     try:
-        if filetype == "Python":
-            # Run Python code directly
-            result = subprocess.run(["python", filename], capture_output=True, text=True, timeout=10)
-            output = result.stdout if result.stdout else result.stderr
+        response = requests.post(url, data=json.dumps(payload), headers=headers)
+        result = response.json()
 
-        elif filetype in ["C++", "C"]:
-            # Compile C or C++ code first
-            exe_file = "temp_exe"
-            compile_result = subprocess.run([compiler, filename, "-o", exe_file], capture_output=True, text=True, timeout=10)
-            
-            if compile_result.returncode == 0:
-                # If compilation is successful, run the executable
-                run_result = subprocess.run([f"./{exe_file}"], capture_output=True, text=True, timeout=10)
-                output = run_result.stdout if run_result.stdout else run_result.stderr
-            else:
-                # Compilation failed, return error
-                output = compile_result.stderr
+        # Get the output after the execution completes
+        if response.status_code == 200:
+            output = result.get("output") or "No output returned"
+        else:
+            output = f"Error: {response.status_code} - {response.text}"
 
-        elif filetype == "Java":
-            # Compile Java code
-            compile_result = subprocess.run(["javac", filename], capture_output=True, text=True, timeout=10)
+    except Exception as e:
+        output = f"An error occurred: {str(e)}"
 
-            if compile_result.returncode == 0:
-                # Run the compiled Java class
-                run_result = subprocess.run(["java", "Temp"], capture_output=True, text=True, timeout=10)
-                output = run_result.stdout if run_result.stdout else run_result.stderr
-            else:
-                # Compilation failed, return error
-                output = compile_result.stderr
-
-        elif filetype == "JavaScript":
-            # Execute JavaScript code using Node.js
-            result = subprocess.run(["node", filename], capture_output=True, text=True, timeout=10)
-            output = result.stdout if result.stdout else result.stderr
-
-    except subprocess.TimeoutExpired:
-        output = "Error: Code execution timed out."
-
-    # Clean up temporary files
-    if os.path.exists(filename):
-        os.remove(filename)
-    if filetype in ["C++", "C"] and os.path.exists(exe_file):
-        os.remove(exe_file)
-    if filetype == "Java" and os.path.exists("Temp.class"):
-        os.remove("Temp.class")
-    
     # Display the output
     st.subheader("Output:")
     st.code(output)
